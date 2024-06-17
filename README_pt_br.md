@@ -1,7 +1,7 @@
-Translations:
+Traduções:
 
-* [French](README_fr.md)
-* [Portuguese (Brazil)](README_pt_br.md)
+* [Inglês](README.md)
+* [Francês](README_fr.md)
 
 ---
 
@@ -87,36 +87,36 @@ import (
 )
 
 func main() {
-   cfg, err := config.LoadConfig()
-   if err != nil {
-      log.Fatalf("failed to load config: %v", err)
-   }
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
 
-   ctx := context.Background()
-   client, err := redis.NewCloudRedisClient(ctx)
-   if err != nil {
-      log.Fatalf("failed to create redis client: %v", err)
-   }
-   defer client.Close()
+	ctx := context.Background()
+	client, err := redis.NewCloudRedisClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to create redis client: %v", err)
+	}
+	defer client.Close()
 
-   l := limiter.NewLimiter(client, cfg.IPLimit, cfg.TokenLimit, cfg.BlockTime)
+	l := limiter.NewLimiter(client, cfg.IPLimit, cfg.TokenLimit, cfg.BlockTime)
 
-   mux := http.NewServeMux()
-   mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-      w.Write([]byte("Hello, World!"))
-   })
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World!"))
+	})
 
-   handler := middleware.RateLimiter(l)(mux)
+	handler := middleware.RateLimiter(l)(mux)
 
-   srv := &http.Server{
-      Handler:      handler,
-      Addr:         "0.0.0.0:8080",
-      WriteTimeout: 15 * time.Second,
-      ReadTimeout:  15 * time.Second,
-   }
+	srv := &http.Server{
+		Handler:      handler,
+		Addr:         "0.0.0.0:8080",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
 
-   log.Println("Server is running on port 8080")
-   log.Fatal(srv.ListenAndServe())
+	log.Println("Server is running on port 8080")
+	log.Fatal(srv.ListenAndServe())
 }
 ```
 
