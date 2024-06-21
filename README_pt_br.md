@@ -59,9 +59,9 @@ Após iniciar o Docker Compose, você pode configurar e usar o limitador de taxa
     ```env
    SERVER_PORT=:8080
    REDIS_ADDR=redis:6379
-   LIMITER_IP_LIMIT=10
-   LIMITER_TOKEN_LIMIT=100
-   LIMITER_BLOCK_TIME=300 # segundos
+   IP_LIMIT=10
+   TOKEN_LIMIT=100
+   BLOCK_TIME=300 # segundos
     ```
 
 2. Execute o servidor Go:
@@ -78,45 +78,42 @@ Para usar o middleware do limitador de taxa, adicione-o ao seu servidor HTTP:
 package main
 
 import (
-   "net/http"
-   "rate-limiter/middleware"
+   "github.com/rodrigoachilles/rate-limiter/configs"
+   "github.com/rodrigoachilles/rate-limiter/internal/infra/middleware"
+   "github.com/rodrigoachilles/rate-limiter/internal/usecase/limiter"
+   "github.com/rodrigoachilles/rate-limiter/internal/infra/database"
    "log"
+   "net/http"
    "time"
    "context"
-   redis "cloud.google.com/go/redis/apiv1"
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
-	}
+   cfg, err := configs.LoadConfig()
+   if err != nil {
+      log.Fatalf("failed to load config: %v", err)
+   }
 
-	ctx := context.Background()
-	client, err := redis.NewCloudRedisClient(ctx)
-	if err != nil {
-		log.Fatalf("failed to create redis client: %v", err)
-	}
-	defer client.Close()
+   repo := repository.NewRedisRepository(cfg.RedisAddr)
+   l := limiter.NewLimiter(repo, int64(cfg.IPLimit), int64(cfg.TokenLimit), cfg.BlockTime)
 
-	l := limiter.NewLimiter(client, cfg.IPLimit, cfg.TokenLimit, cfg.BlockTime)
+   mux := http.NewServeMux()
+   mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+      _, _ = w.Write([]byte("Hello, World!"))
+   })
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
-	})
+   handler := middleware.RateLimiter(l)(mux)
 
-	handler := middleware.RateLimiter(l)(mux)
+   srv := &http.Server{
+      Addr:         cfg.ServerPort,
+      BaseContext:  func(_ net.Listener) context.Context { return ctx },
+      WriteTimeout: 15 * time.Second,
+      ReadTimeout:  15 * time.Second,
+      Handler:      handler,
+   }
 
-	srv := &http.Server{
-		Handler:      handler,
-		Addr:         "0.0.0.0:8080",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	log.Println("Server is running on port 8080")
-	log.Fatal(srv.ListenAndServe())
+   log.Println("Server is running on port 8080")
+   log.Fatal(srv.ListenAndServe())
 }
 ```
 

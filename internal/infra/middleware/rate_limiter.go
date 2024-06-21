@@ -4,21 +4,19 @@ import (
 	"github.com/rodrigoachilles/rate-limiter/internal/usecase/limiter"
 	"net/http"
 	"strings"
-
-	"context"
 )
 
 func RateLimiter(l *limiter.Limiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := getKey(r)
+			key := getIPRequest(r)
 			limit := l.IPLimit
 			if token := r.Header.Get("API_KEY"); token != "" {
 				key = token
 				limit = l.TokenLimit
 			}
 
-			allowed, err := l.AllowRequest(context.Background(), key, limit)
+			allowed, err := l.AllowRequest(r.Context(), key, limit)
 			if err != nil {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
@@ -33,7 +31,6 @@ func RateLimiter(l *limiter.Limiter) func(http.Handler) http.Handler {
 	}
 }
 
-func getKey(r *http.Request) string {
-	ip := strings.Split(r.RemoteAddr, ":")[0]
-	return "rl:" + ip
+func getIPRequest(r *http.Request) string {
+	return strings.Split(r.RemoteAddr, ":")[0]
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/rodrigoachilles/rate-limiter/configs"
 	"github.com/rodrigoachilles/rate-limiter/configs/logger"
+	repository "github.com/rodrigoachilles/rate-limiter/internal/infra/database"
 	"github.com/rodrigoachilles/rate-limiter/internal/infra/middleware"
-	repository "github.com/rodrigoachilles/rate-limiter/internal/infra/redis"
 	"github.com/rodrigoachilles/rate-limiter/internal/usecase/limiter"
 	"net"
 	"net/http"
@@ -35,7 +35,7 @@ func run() (err error) {
 		BaseContext:  func(_ net.Listener) context.Context { return ctx },
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
-		Handler:      handler(cfg.RedisAddr, cfg.IPLimit, cfg.TokenLimit, cfg.BlockTime),
+		Handler:      handler(cfg.RedisAddr, int64(cfg.IPLimit), int64(cfg.TokenLimit), cfg.BlockTime),
 	}
 	srvErr := make(chan error, 1)
 
@@ -51,13 +51,13 @@ func run() (err error) {
 		stop()
 	}
 
-	err = srv.Shutdown(context.Background())
+	err = srv.Shutdown(ctx)
 	return
 }
 
-func handler(redisAddr string, ipLimit, tokenLimit int, blockTime time.Duration) http.Handler {
-	rdb := repository.NewRedisClient(redisAddr)
-	l := limiter.NewLimiter(rdb, ipLimit, tokenLimit, blockTime)
+func handler(redisAddr string, ipLimit, tokenLimit int64, blockTime time.Duration) http.Handler {
+	repo := repository.NewRedisRepository(redisAddr)
+	l := limiter.NewLimiter(repo, ipLimit, tokenLimit, blockTime)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
