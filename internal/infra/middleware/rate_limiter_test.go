@@ -30,7 +30,7 @@ func TestRateLimiter(t *testing.T) {
 			name:   "Allow request with IP",
 			apiKey: "",
 			setup: func() {
-				mockRepo.On("AddRequest", ctx, "rl:127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(1), (*internal_error.InternalError)(nil)).Once()
+				mockRepo.On("AddRequest", ctx, "127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(1), (*internal_error.InternalError)(nil)).Once()
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -38,7 +38,7 @@ func TestRateLimiter(t *testing.T) {
 			name:   "Block request with IP",
 			apiKey: "",
 			setup: func() {
-				mockRepo.On("AddRequest", ctx, "rl:127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(11), (*internal_error.InternalError)(nil)).Once()
+				mockRepo.On("AddRequest", ctx, "127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(11), (*internal_error.InternalError)(nil)).Once()
 			},
 			wantStatus: http.StatusTooManyRequests,
 		},
@@ -62,7 +62,7 @@ func TestRateLimiter(t *testing.T) {
 			name:   "Internal error from repository",
 			apiKey: "",
 			setup: func() {
-				mockRepo.On("AddRequest", ctx, "rl:127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(0), &internal_error.InternalError{}).Once()
+				mockRepo.On("AddRequest", ctx, "127.0.0.1", mock.AnythingOfType("time.Duration")).Return(int64(0), &internal_error.InternalError{}).Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
